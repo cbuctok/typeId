@@ -1,6 +1,7 @@
 ﻿namespace TypeId
 {
     using System;
+    using UuidExtensions;
 
     /// <summary>
     /// TypeId is UUID that contains a prefix and a UUID suffix. The prefix is used to id the type
@@ -8,8 +9,9 @@
     /// </summary>
     public struct TypeId : IComparable, IComparable<TypeId>, IEquatable<TypeId>, IFormattable
     {
-        private const char _delimeter = '_';
-        public readonly Guid Guid => ToGuid();
+        private const char _delimiter = '_';
+        private const short _maxPrefixLength = 63;
+
         public string Id { get; private set; }
         public string Type { get; private set; }
 
@@ -22,17 +24,22 @@
             };
         }
 
-        public static bool IsValidPrefix(string prefix)
+        public static bool IsValidPrefix(string? prefix)
         {
-            if (prefix.Length == 0)
+            if (string.IsNullOrEmpty(prefix))
+            {
+                return true;
+            }
+
+            if (prefix.Length > _maxPrefixLength)
             {
                 return false;
             }
 
             foreach (var c in prefix)
             {
-                // false if not ascii or delimeter
-                if (c > 127 || c == _delimeter)
+                // false if not ascii or delimiter
+                if (c > 127 || c == _delimiter)
                 {
                     return false;
                 }
@@ -109,10 +116,10 @@
 
         public static TypeId Parse(string s)
         {
-            var parts = s.Split(_delimeter);
+            var parts = s.Split(_delimiter);
             if (parts.Length != 2)
             {
-                throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimeter}suffix");
+                throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix");
             }
 
             // validate prefix
@@ -125,12 +132,6 @@
             if (!IsValidSuffix(parts[1]))
             {
                 throw new ArgumentException("Invalid TypeId format - incorrect suffix");
-            }
-
-            var guid = SimpleBase.Base32.Rfc4648.Decode(parts[1]);
-            if (guid.Length != 16)
-            {
-                throw new ArgumentException("Invalid TypeId format - expected suffix in base32");
             }
 
             return new TypeId
@@ -225,7 +226,7 @@
 
         public readonly string ToString(string? format, IFormatProvider? formatProvider)
         {
-            var registryFormatted = Type + _delimeter + Id;
+            var registryFormatted = Type + _delimiter + Id;
 
             if (string.IsNullOrWhiteSpace(format))
             {
@@ -243,24 +244,13 @@
 
         private static string FromGuid(Guid guid)
         {
-            return SimpleBase.Base32.Rfc4648.Encode(guid.ToByteArray()).ToLowerInvariant();
+            return Uuid7.Id26(guid);
         }
 
         private static string NewB32UUid()
         {
-            var guid = Guid.NewGuid();
+            var guid = Uuid7.Guid();
             return FromGuid(guid);
-        }
-
-        private readonly Guid ToGuid()
-        {
-            var guid = SimpleBase.Base32.Rfc4648.Decode(Id);
-            if (guid.Length != 16)
-            {
-                throw new ArgumentException("Invalid TypeId format - expected suffix in base32");
-            }
-
-            return new Guid(guid);
         }
     }
 }

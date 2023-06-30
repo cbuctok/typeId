@@ -9,7 +9,7 @@ namespace TypeIdTests
         [TestMethod]
         public void Equal()
         {
-            var typeId = TypeId.NewTypeId("prefix1");
+            var typeId = TypeId.NewTypeId("prefix");
             var typeId2 = TypeId.Parse(typeId.ToString());
             Assert.AreEqual(typeId, typeId2, "Parsing");
 
@@ -20,24 +20,10 @@ namespace TypeIdTests
         }
 
         [TestMethod]
-        public void GuidTests()
-        {
-            var guid = Guid.NewGuid();
-            var typeId = TypeId.FromGuid("prefix", guid);
-            Assert.AreEqual(guid, typeId.Guid, "Guid roundtrip");
-
-            var typeId2 = new TypeId();
-            typeId2.SetId(guid);
-            typeId2.SetType(typeId.Type);
-            Assert.AreEqual(typeId, typeId2, "Setters");
-            Assert.AreEqual(guid, typeId2.Guid, "Guid roundtrip2");
-        }
-
-        [TestMethod]
         public void NotEqual()
         {
-            var typeId = TypeId.NewTypeId("prefix1");
-            var typeId2 = TypeId.NewTypeId("prefix1");
+            var typeId = TypeId.NewTypeId("prefix");
+            var typeId2 = TypeId.NewTypeId("prefix");
             Assert.AreNotEqual(typeId, typeId2);
         }
 
@@ -52,7 +38,7 @@ namespace TypeIdTests
             stopwatch.Start();
             for (var i = 0; i < iterations; i++)
             {
-                hashSetOfIds.Add(TypeId.NewTypeId("prefix1"));
+                hashSetOfIds.Add(TypeId.NewTypeId("prefix"));
             }
             stopwatch.Stop();
 
@@ -75,18 +61,22 @@ namespace TypeIdTests
             var typeIds = new List<TypeId>();
             for (var i = 0; i < 10; i++)
             {
-                typeIds.Add(TypeId.NewTypeId("prefix" + i));
+                var typeId = TypeId.NewTypeId("prefix");
+                typeIds.Add(typeId);
+                Console.WriteLine($"-> {typeId}");
             }
 
-            // typeIds are sortable so the list should be sorted without any extra work assert the
-            // list is sorted
-            Assert.IsTrue(typeIds.SequenceEqual(typeIds.OrderBy(x => x)), "Sorting");
+            // typeIds are sortable so the list should be sorted without any extra work
+            var orderedSequence = typeIds.OrderBy(x => x).ToList();
+
+            // assert the lists are sorted
+            Assert.IsTrue(typeIds.SequenceEqual(orderedSequence), "Sorting");
         }
 
         [TestMethod]
         public void TryParse()
         {
-            var typeId = TypeId.NewTypeId("prefix1");
+            var typeId = TypeId.NewTypeId("prefix");
             Assert.IsTrue(TypeId.TryParse(typeId.ToString(), out var typeId2));
             Assert.AreEqual(typeId, typeId2, "Parsing");
         }
