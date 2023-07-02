@@ -1,18 +1,24 @@
 ﻿namespace TypeId
 {
     using System;
-    using UuidExtensions;
+    using UUIDNext;
 
     /// <summary>
     /// TypeId is UUID that contains a prefix and a UUID suffix. The prefix is used to id the type
     /// of the object. The suffix is used to identify the object.
     /// </summary>
-    public struct TypeId : IComparable, IComparable<TypeId>, IEquatable<TypeId>, IFormattable
+    public partial struct TypeId
     {
-        private const char _delimiter = '_';
+        public static readonly TypeId Empty = new TypeId(string.Empty, Guid.Empty);
         private const short _maxPrefixLength = 63;
 
-        public string Id { get; private set; }
+        public TypeId(string prefix, Guid guid) : this()
+        {
+            Type = prefix;
+            Id = guid;
+        }
+
+        public Guid Id { get; private set; }
         public string Type { get; private set; }
 
         public static TypeId FromGuid(string prefix, Guid guid)
@@ -20,7 +26,7 @@
             return new TypeId
             {
                 Type = prefix,
-                Id = FromGuid(guid)
+                Id = guid
             };
         }
 
@@ -66,12 +72,21 @@
             return true;
         }
 
+        public static TypeId New()
+        {
+            return new TypeId
+            {
+                Type = string.Empty,
+                Id = Uuid.NewSequential()
+            };
+        }
+
         public static TypeId NewTypeId(string prefix)
         {
             return new TypeId
             {
                 Type = prefix.ToLower(),
-                Id = NewB32UUid()
+                Id = Uuid.NewSequential()
             };
         }
 
@@ -80,38 +95,8 @@
             return new TypeId
             {
                 Type = string.Empty,
-                Id = NewB32UUid()
+                Id = Uuid.NewSequential()
             };
-        }
-
-        public static bool operator !=(TypeId left, TypeId right)
-        {
-            return !(left==right);
-        }
-
-        public static bool operator <(TypeId left, TypeId right)
-        {
-            return left.CompareTo(right) < 0;
-        }
-
-        public static bool operator <=(TypeId left, TypeId right)
-        {
-            return left.CompareTo(right)<=0;
-        }
-
-        public static bool operator ==(TypeId left, TypeId right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator >(TypeId left, TypeId right)
-        {
-            return left.CompareTo(right) > 0;
-        }
-
-        public static bool operator >=(TypeId left, TypeId right)
-        {
-            return left.CompareTo(right)>= 0;
         }
 
         public static TypeId Parse(string s)
@@ -134,10 +119,14 @@
                 throw new ArgumentException("Invalid TypeId format - incorrect suffix");
             }
 
+            // decode parts[1] to guid
+            var guidBytes = SimpleBase.Base32.Crockford.Decode(parts[1]);
+            var guid = new Guid(guidBytes);
+
             return new TypeId
             {
                 Type = parts[0],
-                Id = parts[1]
+                Id = guid
             };
         }
 
@@ -155,55 +144,9 @@
             }
         }
 
-        public readonly int CompareTo(object obj)
-        {
-            if (obj is TypeId other)
-                return CompareTo(other);
-
-            throw new ArgumentException("Object is not a TypeId");
-        }
-
-        public readonly int CompareTo(TypeId other)
-        {
-            var typeCompare = string.CompareOrdinal(Type, other.Type);
-            if (typeCompare != 0)
-            {
-                return typeCompare;
-            }
-
-            return string.CompareOrdinal(Id, other.Id);
-        }
-
-        public override readonly bool Equals(object? obj)
-        {
-            return obj is TypeId id
-                && Equals(id);
-        }
-
-        public readonly bool Equals(TypeId other)
-        {
-            return Id == other.Id
-                && Type == other.Type;
-        }
-
-        public override readonly int GetHashCode()
-        {
-            return HashCode.Combine(Id, Type);
-        }
-
         public void SetId(Guid guid)
         {
-            Id = FromGuid(guid);
-        }
-
-        public void SetId(string suffix)
-        {
-            if (!IsValidSuffix(suffix))
-            {
-                throw new ArgumentException("Invalid TypeId format - incorrect suffix");
-            }
-
-            Id = suffix;
+            Id = guid;
         }
 
         public void SetType(string prefix)
@@ -214,43 +157,6 @@
             }
 
             Type = prefix;
-        }
-
-        // Returns the guid in "registry" format.
-        public override readonly string ToString() => ToString("d", null);
-
-        public readonly string ToString(string? format)
-        {
-            return ToString(format, null);
-        }
-
-        public readonly string ToString(string? format, IFormatProvider? formatProvider)
-        {
-            var registryFormatted = Type + _delimiter + Id;
-
-            if (string.IsNullOrWhiteSpace(format))
-            {
-                return registryFormatted.ToLowerInvariant();
-            }
-
-            formatProvider ??= System.Globalization.CultureInfo.CurrentCulture;
-
-            return formatProvider.ToString().ToLowerInvariant() switch
-            {
-                "g" => registryFormatted,
-                _ => registryFormatted.ToLowerInvariant(),
-            };
-        }
-
-        private static string FromGuid(Guid guid)
-        {
-            return Uuid7.Id26(guid);
-        }
-
-        private static string NewB32UUid()
-        {
-            var guid = Uuid7.Guid();
-            return FromGuid(guid);
         }
     }
 }

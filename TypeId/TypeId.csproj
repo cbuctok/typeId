@@ -7,10 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="SimpleBase" Version="4.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\uuid7-csharp\Src\UuidExtensions\UuidExtensions.csproj" />
+    <PackageReference Include="UUIDNext" Version="2.0.2" />
   </ItemGroup>
 
 </Project>
