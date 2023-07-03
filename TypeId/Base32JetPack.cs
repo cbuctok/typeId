@@ -3,8 +3,7 @@
     using System;
 
     /// <summary>
-    /// Based on base32 implementation in go from jetpack-io.
-    /// https://github.com/jetpack-io/typeid-go/blob/main/base32/base32.go
+    /// Based on base32 implementation in go from jetpack-io. https://github.com/jetpack-io/typeid-go/blob/main/base32/base32.go
     /// </summary>
     internal static class Base32JetPack
     {

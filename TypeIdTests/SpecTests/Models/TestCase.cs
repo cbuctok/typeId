@@ -4,8 +4,8 @@
     {
         public string description;
         public string name;
-        public string typeid;
         public string prefix;
+        public string typeid;
         public Guid uuid;
     }
 }

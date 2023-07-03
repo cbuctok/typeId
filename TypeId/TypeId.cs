@@ -174,9 +174,7 @@
         /// <summary>
         /// Endian swap the UUID and return it as a GUID
         /// </summary>
-        /// <returns>
-        /// Returns a GUID
-        /// </returns>
+        /// <returns>Returns a GUID</returns>
         public readonly Guid GetGuid()
         {
             // endian swap
@@ -206,9 +204,7 @@
         /// <summary>
         /// Use UUID only with other UUIDs
         /// </summary>
-        /// <returns>
-        /// Returns a UUID
-        /// </returns>
+        /// <returns>Returns a UUID</returns>
 
         public readonly Guid GetUuid() => Uuid;
 
