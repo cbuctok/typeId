@@ -16,7 +16,9 @@
 
         public readonly string ToString(string? format, IFormatProvider? formatProvider)
         {
-            var registryFormatted = Type + _delimiter + Id;
+            var registryFormatted = string.IsNullOrWhiteSpace(Type)
+                ? Id
+                : Type + _delimiter + Id;
 
             if (string.IsNullOrWhiteSpace(format))
             {
