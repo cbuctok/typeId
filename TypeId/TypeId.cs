@@ -56,17 +56,6 @@
             return true;
         }
 
-        public static bool IsValidPrefixParsing(string? prefix)
-        {
-            if (string.IsNullOrEmpty(prefix))
-            {
-                // "prefix cannot be empty when there's a separator"
-                return false;
-            }
-
-            return IsValidPrefix(prefix);
-        }
-
         public static bool IsValidSuffix(string suffix)
         {
             if (suffix.Length != _suffixLength)

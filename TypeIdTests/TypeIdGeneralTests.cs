@@ -83,7 +83,7 @@ namespace TypeIdTests
             {
                 var typeId = TypeId.NewTypeId("prefix");
                 typeIds.Add(typeId);
-                Console.WriteLine($"-> {typeId}");
+                Console.WriteLine($"{typeIds.Count} {typeId}");
             }
 
             // typeIds are sortable so the list should be sorted without any extra work
