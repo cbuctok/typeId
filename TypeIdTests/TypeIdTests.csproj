@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TypeId\TypeId.csproj" />
+    <ProjectReference Include="..\TypeId\Evgreg.TypeId.csproj" />
   </ItemGroup>
 
   <ItemGroup>

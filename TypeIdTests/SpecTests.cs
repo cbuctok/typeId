@@ -39,12 +39,10 @@
         [TestMethod]
         public void SpecTestInvalidDecoding()
         {
-            foreach (var testCase in validationTestPairs.Where(tc => tc.Value).Select(t => t.Key))
+            foreach (var testCase in validationTestPairs.Where(tc => !tc.Value).Select(t => t.Key))
             {
                 var isValid = TypeId.TryParse(testCase.typeid, out var typeId);
-                Assert.AreEqual(true, isValid, testCase.description ?? $"{testCase.typeid} should be valid");
-                Assert.AreEqual(testCase.typeid, typeId.ToString(), testCase.description ?? $"{nameof(testCase.typeid)} should not be {testCase.typeid}");
-                Assert.AreEqual(testCase.uuid, typeId.GetUuid(), testCase.description ?? $"{nameof(testCase.uuid)} should not be {testCase.uuid}");
+                Assert.AreEqual(false, isValid, testCase.description ?? $"{testCase.typeid} should be valid");
             }
         }
 
