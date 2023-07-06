@@ -63,6 +63,11 @@
                 return false;
             }
 
+            if (suffix[0] > '7')
+            {
+                return false;
+            }
+
             foreach (var c in suffix)
             {
                 if (!char.IsLetterOrDigit(c))
