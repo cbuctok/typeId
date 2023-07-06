@@ -109,7 +109,7 @@ namespace TypeIdTests
             Assert.AreEqual(default, typeId2, "Invalid prefix");
 
             // Invalid suffix
-            Assert.IsFalse(TypeId.TryParse("prefix1_1234567890123456789012345", out typeId2));
+            Assert.IsFalse(TypeId.TryParse("prefix_1234567890123456789012345", out typeId2));
             Assert.AreEqual(default, typeId2, "Invalid suffix");
 
             // Invalid prefix and suffix
