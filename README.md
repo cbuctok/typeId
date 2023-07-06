@@ -1,6 +1,6 @@
 # TypeID .Net Standard 2.1
 
-## A C# implementation of [TypeIDs](https://github.com/jetpack-io/typeid)
+## A C# implementation of [TypeIDs](https://github.com/jetpack-io/typeid) (Version 0.2.0)
 
 ![License: Apache 2.0](https://img.shields.io/github/license/jetpack-io/typeid-go)
 
