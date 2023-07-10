@@ -4,11 +4,30 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>Evgreg.TypeId</Title>
+    <Title>TypeId</Title>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <Version>1.0.3</Version>
+    <Authors>Greg Evseev</Authors>
+    <Company>Grigory Evseev SP</Company>
+    <Description>A type-safe, K-sortable, globally unique identifier</Description>
+    <PackageReleaseNotes>Updated metadata</PackageReleaseNotes>
+    <Copyright>Copyright (c) Grigory Evseev SP 2023</Copyright>
+    <PackageProjectUrl>https://github.com/cbuctok/typeId</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/cbuctok/typeId</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>TypeID;UUID;UUIDv7;Base32;Encoding;C#;Identity;K-sortable</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="UUIDNext" Version="2.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
   </ItemGroup>
 
 </Project>
