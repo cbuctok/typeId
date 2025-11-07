@@ -1,6 +1,6 @@
 # TypeID .Net Standard 2.1
 
-## A C# implementation of [TypeIDs](https://github.com/jetpack-io/typeid) (Version 0.2.0)
+## A C# implementation of [TypeIDs](https://github.com/jetpack-io/typeid) (Version 0.3.0)
 
 [![CI](https://github.com/cbuctok/typeId/actions/workflows/ci.yml/badge.svg)](https://github.com/cbuctok/typeId/actions/workflows/ci.yml)
 [![Performance Tests](https://github.com/cbuctok/typeId/actions/workflows/performance.yml/badge.svg)](https://github.com/cbuctok/typeId/actions/workflows/performance.yml)

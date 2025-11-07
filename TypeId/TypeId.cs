@@ -44,15 +44,35 @@
 
         public static bool IsValidPrefix(string prefix)
         {
+            // Empty prefix is valid
+            if (prefix.Length == 0)
+            {
+                return true;
+            }
+
             if (prefix.Length > _maxPrefixLength)
             {
                 return false;
             }
 
-            foreach (var c in prefix)
+            // Must start with a lowercase letter (not underscore)
+            if (prefix[0] < 'a' || prefix[0] > 'z')
             {
-                // Fast ASCII lowercase check: a-z are 97-122
-                if (c < 'a' || c > 'z' || c == _delimiter)
+                return false;
+            }
+
+            // Must end with a lowercase letter (not underscore)
+            if (prefix[prefix.Length - 1] < 'a' || prefix[prefix.Length - 1] > 'z')
+            {
+                return false;
+            }
+
+            // Check middle characters: can be lowercase letters or underscores
+            for (int i = 1; i < prefix.Length - 1; i++)
+            {
+                var c = prefix[i];
+                // Fast ASCII lowercase check: a-z are 97-122, underscore is 95
+                if ((c < 'a' || c > 'z') && c != _delimiter)
                 {
                     return false;
                 }
@@ -68,16 +88,27 @@
                 return false;
             }
 
+            // First character must be 0-7 to ensure the value doesn't exceed 128 bits
             if (suffix[0] > '7')
             {
                 return false;
             }
 
-            // Fast validation: valid base32 chars are 0-9, a-z (excluding i, l, o, u)
+            // Valid base32 chars are 0-9, a-z (excluding i, l, o, u)
+            // The alphabet is: 0123456789abcdefghjkmnpqrstvwxyz
             foreach (var c in suffix)
             {
-                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'))
+                if (c >= '0' && c <= '9')
                 {
+                    continue;
+                }
+                if (c >= 'a' && c <= 'z')
+                {
+                    // Reject i, l, o, u as they're not in the base32 alphabet
+                    if (c == 'i' || c == 'l' || c == 'o' || c == 'u')
+                    {
+                        return false;
+                    }
                     continue;
                 }
                 return false;
@@ -108,30 +139,36 @@
             string prefix;
             string suffix;
 
-            // Use IndexOf instead of Split to avoid array allocation
-            int delimiterIndex = input.IndexOf(_delimiter);
+            // The suffix is always exactly 26 characters
+            // If there's a prefix, it's separated by '_'
+            // Since prefixes can now contain underscores (0.3.0 spec), we need to find the separator
+            // by checking if the last 26 chars are a valid suffix preceded by '_'
 
-            if (delimiterIndex == -1)
+            if (input.Length == _suffixLength)
             {
-                // No delimiter - just suffix
+                // No prefix - just 26 character suffix
                 prefix = string.Empty;
                 suffix = input;
             }
-            else
+            else if (input.Length > _suffixLength)
             {
-                // Has delimiter - split into prefix and suffix
-                prefix = input.Substring(0, delimiterIndex);
-                suffix = input.Substring(delimiterIndex + 1);
+                // Extract the last 26 characters as the suffix
+                suffix = input.Substring(input.Length - _suffixLength);
+
+                // The character before the suffix should be the separator
+                int separatorIndex = input.Length - _suffixLength - 1;
+
+                if (separatorIndex < 0 || input[separatorIndex] != _delimiter)
+                {
+                    throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
+                }
+
+                // Everything before the separator is the prefix
+                prefix = input.Substring(0, separatorIndex);
 
                 if (string.IsNullOrWhiteSpace(prefix))
                 {
                     throw new ArgumentException("Invalid TypeId format - if the prefix is empty, the separator should not be there");
-                }
-
-                // Check for multiple delimiters
-                if (suffix.IndexOf(_delimiter) != -1)
-                {
-                    throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
                 }
 
                 // validate prefix
@@ -139,6 +176,11 @@
                 {
                     throw new ArgumentException("Invalid TypeId format - incorrect prefix");
                 }
+            }
+            else
+            {
+                // Input is shorter than 26 characters - invalid
+                throw new ArgumentException("Invalid TypeId format - suffix must be exactly 26 characters");
             }
 
             // validate suffix
