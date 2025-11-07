@@ -107,8 +107,14 @@ jobs:
       run: dotnet format TypeId.sln --verify-no-changes --verbosity diagnostic || true
       continue-on-error: true
 
+    - name: Restore dependencies
+      run: dotnet restore TypeId/Evgreg.TypeId.csproj
+
+    - name: Build library for packaging
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Release --no-restore
+
     - name: Pack NuGet package
-      run: dotnet pack TypeId/Evgreg.TypeId.csproj --configuration Release --output ./artifacts
+      run: dotnet pack TypeId/Evgreg.TypeId.csproj --configuration Release --no-build --output ./artifacts
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
