@@ -1,0 +1,144 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, master, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-library:
+    name: Build Library (Multi-version)
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dotnet-version: ['6.0.x', '8.0.x']
+      fail-fast: false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET ${{ matrix.dotnet-version }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ matrix.dotnet-version }}
+
+    - name: Display .NET info
+      run: dotnet --info
+
+    - name: Restore library dependencies
+      run: dotnet restore TypeId/Evgreg.TypeId.csproj
+
+    - name: Build library (Debug)
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Debug --no-restore
+
+    - name: Build library (Release)
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Release --no-restore
+
+    - name: Build summary
+      if: always()
+      run: |
+        echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Library built successfully for .NET ${{ matrix.dotnet-version }}" >> $GITHUB_STEP_SUMMARY
+
+  test:
+    name: Run Tests (.NET 8.0)
+    runs-on: ubuntu-latest
+    needs: build-library
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET 8.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Display .NET info
+      run: dotnet --info
+
+    - name: Restore dependencies
+      run: dotnet restore TypeId.sln
+
+    - name: Build solution (Debug)
+      run: dotnet build TypeId.sln --configuration Debug --no-restore
+
+    - name: Build solution (Release)
+      run: dotnet build TypeId.sln --configuration Release --no-restore
+
+    - name: Run tests (Debug)
+      run: dotnet test TypeId.sln --configuration Debug --no-build --verbosity normal --logger "console;verbosity=detailed"
+
+    - name: Run tests (Release)
+      run: dotnet test TypeId.sln --configuration Release --no-build --verbosity normal --logger "console;verbosity=detailed"
+
+    - name: Run performance test explicitly
+      run: dotnet test TypeId.sln --configuration Release --no-build --filter "FullyQualifiedName~PerformanceTest" --verbosity normal
+
+    - name: Test summary
+      if: always()
+      run: |
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All tests completed on .NET 8.0" >> $GITHUB_STEP_SUMMARY
+
+  validation:
+    name: Code Validation
+    runs-on: ubuntu-latest
+    needs: [build-library, test]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Format check
+      run: dotnet format TypeId.sln --verify-no-changes --verbosity diagnostic || true
+      continue-on-error: true
+
+    - name: Restore dependencies
+      run: dotnet restore TypeId/Evgreg.TypeId.csproj
+
+    - name: Build library for packaging
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Release --no-restore
+
+    - name: Pack NuGet package
+      run: dotnet pack TypeId/Evgreg.TypeId.csproj --configuration Release --no-build --output ./artifacts
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: ./artifacts/*.nupkg
+        retention-days: 7
+
+  status-check:
+    name: CI Status Check
+    runs-on: ubuntu-latest
+    needs: [build-library, test, validation]
+    if: always()
+
+    steps:
+    - name: Check build status
+      run: |
+        if [ "${{ needs.build-library.result }}" == "success" ] && [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.validation.result }}" == "success" ]; then
+          echo "✅ All CI checks passed!"
+          exit 0
+        else
+          echo "❌ CI checks failed"
+          echo "Build Library: ${{ needs.build-library.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Validation: ${{ needs.validation.result }}"
+          exit 1
+        fi

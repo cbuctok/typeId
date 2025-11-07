@@ -2,6 +2,9 @@
 
 ## A C# implementation of [TypeIDs](https://github.com/jetpack-io/typeid) (Version 0.2.0)
 
+[![CI](https://github.com/cbuctok/typeId/actions/workflows/ci.yml/badge.svg)](https://github.com/cbuctok/typeId/actions/workflows/ci.yml)
+[![Performance Tests](https://github.com/cbuctok/typeId/actions/workflows/performance.yml/badge.svg)](https://github.com/cbuctok/typeId/actions/workflows/performance.yml)
+[![PR Validation](https://github.com/cbuctok/typeId/actions/workflows/pr-validation.yml/badge.svg)](https://github.com/cbuctok/typeId/actions/workflows/pr-validation.yml)
 ![License: Apache 2.0](https://img.shields.io/github/license/jetpack-io/typeid-go)
 
 TypeIDs are a modern, **type-safe**, globally unique identifier based on the upcoming
