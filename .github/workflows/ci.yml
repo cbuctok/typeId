@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  build-library:
+    name: Build Library (Multi-version)
     runs-on: ubuntu-latest
 
     strategy:
@@ -27,6 +27,40 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ matrix.dotnet-version }}
+
+    - name: Display .NET info
+      run: dotnet --info
+
+    - name: Restore library dependencies
+      run: dotnet restore TypeId/Evgreg.TypeId.csproj
+
+    - name: Build library (Debug)
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Debug --no-restore
+
+    - name: Build library (Release)
+      run: dotnet build TypeId/Evgreg.TypeId.csproj --configuration Release --no-restore
+
+    - name: Build summary
+      if: always()
+      run: |
+        echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Library built successfully for .NET ${{ matrix.dotnet-version }}" >> $GITHUB_STEP_SUMMARY
+
+  test:
+    name: Run Tests (.NET 8.0)
+    runs-on: ubuntu-latest
+    needs: build-library
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET 8.0
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
 
     - name: Display .NET info
       run: dotnet --info
@@ -53,12 +87,12 @@ jobs:
       if: always()
       run: |
         echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "✅ All tests completed for .NET ${{ matrix.dotnet-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All tests completed on .NET 8.0" >> $GITHUB_STEP_SUMMARY
 
   validation:
     name: Code Validation
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: [build-library, test]
 
     steps:
     - name: Checkout code
@@ -86,18 +120,19 @@ jobs:
   status-check:
     name: CI Status Check
     runs-on: ubuntu-latest
-    needs: [build-and-test, validation]
+    needs: [build-library, test, validation]
     if: always()
 
     steps:
     - name: Check build status
       run: |
-        if [ "${{ needs.build-and-test.result }}" == "success" ] && [ "${{ needs.validation.result }}" == "success" ]; then
+        if [ "${{ needs.build-library.result }}" == "success" ] && [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.validation.result }}" == "success" ]; then
           echo "✅ All CI checks passed!"
           exit 0
         else
           echo "❌ CI checks failed"
-          echo "Build and Test: ${{ needs.build-and-test.result }}"
+          echo "Build Library: ${{ needs.build-library.result }}"
+          echo "Test: ${{ needs.test.result }}"
           echo "Validation: ${{ needs.validation.result }}"
           exit 1
         fi

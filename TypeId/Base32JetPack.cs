@@ -87,7 +87,38 @@
                 throw new ArgumentException("Source array length must be 16.", nameof(src));
             }
 
-            return EncodeCore(src);
+            return string.Create(26, src, (dst, bytes) =>
+            {
+                // 10 byte timestamp
+                dst[0] = _alphabet[(bytes[0] & 224) >> 5];
+                dst[1] = _alphabet[bytes[0] & 31];
+                dst[2] = _alphabet[(bytes[1] & 248) >> 3];
+                dst[3] = _alphabet[((bytes[1] & 7) << 2) | ((bytes[2] & 192) >> 6)];
+                dst[4] = _alphabet[(bytes[2] & 62) >> 1];
+                dst[5] = _alphabet[((bytes[2] & 1) << 4) | ((bytes[3] & 240) >> 4)];
+                dst[6] = _alphabet[((bytes[3] & 15) << 1) | ((bytes[4] & 128) >> 7)];
+                dst[7] = _alphabet[(bytes[4] & 124) >> 2];
+                dst[8] = _alphabet[((bytes[4] & 3) << 3) | ((bytes[5] & 224) >> 5)];
+                dst[9] = _alphabet[bytes[5] & 31];
+
+                // 16 bytes of entropy
+                dst[10] = _alphabet[(bytes[6] & 248) >> 3];
+                dst[11] = _alphabet[((bytes[6] & 7) << 2) | ((bytes[7] & 192) >> 6)];
+                dst[12] = _alphabet[(bytes[7] & 62) >> 1];
+                dst[13] = _alphabet[((bytes[7] & 1) << 4) | ((bytes[8] & 240) >> 4)];
+                dst[14] = _alphabet[((bytes[8] & 15) << 1) | ((bytes[9] & 128) >> 7)];
+                dst[15] = _alphabet[(bytes[9] & 124) >> 2];
+                dst[16] = _alphabet[((bytes[9] & 3) << 3) | ((bytes[10] & 224) >> 5)];
+                dst[17] = _alphabet[bytes[10] & 31];
+                dst[18] = _alphabet[(bytes[11] & 248) >> 3];
+                dst[19] = _alphabet[((bytes[11] & 7) << 2) | ((bytes[12] & 192) >> 6)];
+                dst[20] = _alphabet[(bytes[12] & 62) >> 1];
+                dst[21] = _alphabet[((bytes[12] & 1) << 4) | ((bytes[13] & 240) >> 4)];
+                dst[22] = _alphabet[((bytes[13] & 15) << 1) | ((bytes[14] & 128) >> 7)];
+                dst[23] = _alphabet[(bytes[14] & 124) >> 2];
+                dst[24] = _alphabet[((bytes[14] & 3) << 3) | ((bytes[15] & 224) >> 5)];
+                dst[25] = _alphabet[bytes[15] & 31];
+            });
         }
 
         public static string Encode(ReadOnlySpan<byte> src)
@@ -97,48 +128,40 @@
                 throw new ArgumentException("Source span length must be 16.");
             }
 
-            return EncodeCore(src);
-        }
+            // For span, use inline encoding with stackalloc for intermediate buffer
+            Span<char> chars = stackalloc char[26];
 
-        private static unsafe string EncodeCore(ReadOnlySpan<byte> bytes)
-        {
-            fixed (byte* ptr = bytes)
-            {
-                return string.Create(26, (IntPtr)ptr, (dst, state) =>
-                {
-                    byte* b = (byte*)state;
+            // 10 byte timestamp
+            chars[0] = _alphabet[(src[0] & 224) >> 5];
+            chars[1] = _alphabet[src[0] & 31];
+            chars[2] = _alphabet[(src[1] & 248) >> 3];
+            chars[3] = _alphabet[((src[1] & 7) << 2) | ((src[2] & 192) >> 6)];
+            chars[4] = _alphabet[(src[2] & 62) >> 1];
+            chars[5] = _alphabet[((src[2] & 1) << 4) | ((src[3] & 240) >> 4)];
+            chars[6] = _alphabet[((src[3] & 15) << 1) | ((src[4] & 128) >> 7)];
+            chars[7] = _alphabet[(src[4] & 124) >> 2];
+            chars[8] = _alphabet[((src[4] & 3) << 3) | ((src[5] & 224) >> 5)];
+            chars[9] = _alphabet[src[5] & 31];
 
-                    // 10 byte timestamp
-                    dst[0] = _alphabet[(b[0] & 224) >> 5];
-                    dst[1] = _alphabet[b[0] & 31];
-                    dst[2] = _alphabet[(b[1] & 248) >> 3];
-                    dst[3] = _alphabet[((b[1] & 7) << 2) | ((b[2] & 192) >> 6)];
-                    dst[4] = _alphabet[(b[2] & 62) >> 1];
-                    dst[5] = _alphabet[((b[2] & 1) << 4) | ((b[3] & 240) >> 4)];
-                    dst[6] = _alphabet[((b[3] & 15) << 1) | ((b[4] & 128) >> 7)];
-                    dst[7] = _alphabet[(b[4] & 124) >> 2];
-                    dst[8] = _alphabet[((b[4] & 3) << 3) | ((b[5] & 224) >> 5)];
-                    dst[9] = _alphabet[b[5] & 31];
+            // 16 bytes of entropy
+            chars[10] = _alphabet[(src[6] & 248) >> 3];
+            chars[11] = _alphabet[((src[6] & 7) << 2) | ((src[7] & 192) >> 6)];
+            chars[12] = _alphabet[(src[7] & 62) >> 1];
+            chars[13] = _alphabet[((src[7] & 1) << 4) | ((src[8] & 240) >> 4)];
+            chars[14] = _alphabet[((src[8] & 15) << 1) | ((src[9] & 128) >> 7)];
+            chars[15] = _alphabet[(src[9] & 124) >> 2];
+            chars[16] = _alphabet[((src[9] & 3) << 3) | ((src[10] & 224) >> 5)];
+            chars[17] = _alphabet[src[10] & 31];
+            chars[18] = _alphabet[(src[11] & 248) >> 3];
+            chars[19] = _alphabet[((src[11] & 7) << 2) | ((src[12] & 192) >> 6)];
+            chars[20] = _alphabet[(src[12] & 62) >> 1];
+            chars[21] = _alphabet[((src[12] & 1) << 4) | ((src[13] & 240) >> 4)];
+            chars[22] = _alphabet[((src[13] & 15) << 1) | ((src[14] & 128) >> 7)];
+            chars[23] = _alphabet[(src[14] & 124) >> 2];
+            chars[24] = _alphabet[((src[14] & 3) << 3) | ((src[15] & 224) >> 5)];
+            chars[25] = _alphabet[src[15] & 31];
 
-                    // 16 bytes of entropy
-                    dst[10] = _alphabet[(b[6] & 248) >> 3];
-                    dst[11] = _alphabet[((b[6] & 7) << 2) | ((b[7] & 192) >> 6)];
-                    dst[12] = _alphabet[(b[7] & 62) >> 1];
-                    dst[13] = _alphabet[((b[7] & 1) << 4) | ((b[8] & 240) >> 4)];
-                    dst[14] = _alphabet[((b[8] & 15) << 1) | ((b[9] & 128) >> 7)];
-                    dst[15] = _alphabet[(b[9] & 124) >> 2];
-                    dst[16] = _alphabet[((b[9] & 3) << 3) | ((b[10] & 224) >> 5)];
-                    dst[17] = _alphabet[b[10] & 31];
-                    dst[18] = _alphabet[(b[11] & 248) >> 3];
-                    dst[19] = _alphabet[((b[11] & 7) << 2) | ((b[12] & 192) >> 6)];
-                    dst[20] = _alphabet[(b[12] & 62) >> 1];
-                    dst[21] = _alphabet[((b[12] & 1) << 4) | ((b[13] & 240) >> 4)];
-                    dst[22] = _alphabet[((b[13] & 15) << 1) | ((b[14] & 128) >> 7)];
-                    dst[23] = _alphabet[(b[14] & 124) >> 2];
-                    dst[24] = _alphabet[((b[14] & 3) << 3) | ((b[15] & 224) >> 5)];
-                    dst[25] = _alphabet[b[15] & 31];
-                });
-            }
+            return new string(chars);
         }
     }
 }
