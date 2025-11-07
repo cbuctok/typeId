@@ -139,30 +139,36 @@
             string prefix;
             string suffix;
 
-            // Use IndexOf instead of Split to avoid array allocation
-            int delimiterIndex = input.IndexOf(_delimiter);
+            // The suffix is always exactly 26 characters
+            // If there's a prefix, it's separated by '_'
+            // Since prefixes can now contain underscores (0.3.0 spec), we need to find the separator
+            // by checking if the last 26 chars are a valid suffix preceded by '_'
 
-            if (delimiterIndex == -1)
+            if (input.Length == _suffixLength)
             {
-                // No delimiter - just suffix
+                // No prefix - just 26 character suffix
                 prefix = string.Empty;
                 suffix = input;
             }
-            else
+            else if (input.Length > _suffixLength)
             {
-                // Has delimiter - split into prefix and suffix
-                prefix = input.Substring(0, delimiterIndex);
-                suffix = input.Substring(delimiterIndex + 1);
+                // Extract the last 26 characters as the suffix
+                suffix = input.Substring(input.Length - _suffixLength);
+
+                // The character before the suffix should be the separator
+                int separatorIndex = input.Length - _suffixLength - 1;
+
+                if (separatorIndex < 0 || input[separatorIndex] != _delimiter)
+                {
+                    throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
+                }
+
+                // Everything before the separator is the prefix
+                prefix = input.Substring(0, separatorIndex);
 
                 if (string.IsNullOrWhiteSpace(prefix))
                 {
                     throw new ArgumentException("Invalid TypeId format - if the prefix is empty, the separator should not be there");
-                }
-
-                // Check for multiple delimiters
-                if (suffix.IndexOf(_delimiter) != -1)
-                {
-                    throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
                 }
 
                 // validate prefix
@@ -170,6 +176,11 @@
                 {
                     throw new ArgumentException("Invalid TypeId format - incorrect prefix");
                 }
+            }
+            else
+            {
+                // Input is shorter than 26 characters - invalid
+                throw new ArgumentException("Invalid TypeId format - suffix must be exactly 26 characters");
             }
 
             // validate suffix
