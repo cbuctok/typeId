@@ -46,11 +46,10 @@
                 throw new ArgumentException("Invalid length");
             }
 
-            var v = System.Text.Encoding.UTF8.GetBytes(s);
-
-            for (int i = 0; i < v.Length; i++)
+            // Work directly with string chars - no UTF8 encoding allocation
+            for (int i = 0; i < s.Length; i++)
             {
-                if (Dec[v[i]] == 0xFF)
+                if (Dec[s[i]] == 0xFF)
                 {
                     throw new ArgumentException("Invalid base32 character");
                 }
@@ -59,24 +58,24 @@
             byte[] id = new byte[16];
 
             // 6 bytes timestamp (48 bits)
-            id[0] = (byte)((Dec[v[0]] << 5) | Dec[v[1]]);
-            id[1] = (byte)((Dec[v[2]] << 3) | (Dec[v[3]] >> 2));
-            id[2] = (byte)((Dec[v[3]] << 6) | (Dec[v[4]] << 1) | (Dec[v[5]] >> 4));
-            id[3] = (byte)((Dec[v[5]] << 4) | (Dec[v[6]] >> 1));
-            id[4] = (byte)((Dec[v[6]] << 7) | (Dec[v[7]] << 2) | (Dec[v[8]] >> 3));
-            id[5] = (byte)((Dec[v[8]] << 5) | Dec[v[9]]);
+            id[0] = (byte)((Dec[s[0]] << 5) | Dec[s[1]]);
+            id[1] = (byte)((Dec[s[2]] << 3) | (Dec[s[3]] >> 2));
+            id[2] = (byte)((Dec[s[3]] << 6) | (Dec[s[4]] << 1) | (Dec[s[5]] >> 4));
+            id[3] = (byte)((Dec[s[5]] << 4) | (Dec[s[6]] >> 1));
+            id[4] = (byte)((Dec[s[6]] << 7) | (Dec[s[7]] << 2) | (Dec[s[8]] >> 3));
+            id[5] = (byte)((Dec[s[8]] << 5) | Dec[s[9]]);
 
             // 10 bytes of entropy (80 bits)
-            id[6] = (byte)((Dec[v[10]] << 3) | (Dec[v[11]] >> 2)); // First 4 bits are the version
-            id[7] = (byte)((Dec[v[11]] << 6) | (Dec[v[12]] << 1) | (Dec[v[13]] >> 4));
-            id[8] = (byte)((Dec[v[13]] << 4) | (Dec[v[14]] >> 1)); // First 2 bits are the variant
-            id[9] = (byte)((Dec[v[14]] << 7) | (Dec[v[15]] << 2) | (Dec[v[16]] >> 3));
-            id[10] = (byte)((Dec[v[16]] << 5) | Dec[v[17]]);
-            id[11] = (byte)((Dec[v[18]] << 3) | Dec[v[19]] >> 2);
-            id[12] = (byte)((Dec[v[19]] << 6) | (Dec[v[20]] << 1) | (Dec[v[21]] >> 4));
-            id[13] = (byte)((Dec[v[21]] << 4) | (Dec[v[22]] >> 1));
-            id[14] = (byte)((Dec[v[22]] << 7) | (Dec[v[23]] << 2) | (Dec[v[24]] >> 3));
-            id[15] = (byte)((Dec[v[24]] << 5) | Dec[v[25]]);
+            id[6] = (byte)((Dec[s[10]] << 3) | (Dec[s[11]] >> 2)); // First 4 bits are the version
+            id[7] = (byte)((Dec[s[11]] << 6) | (Dec[s[12]] << 1) | (Dec[s[13]] >> 4));
+            id[8] = (byte)((Dec[s[13]] << 4) | (Dec[s[14]] >> 1)); // First 2 bits are the variant
+            id[9] = (byte)((Dec[s[14]] << 7) | (Dec[s[15]] << 2) | (Dec[s[16]] >> 3));
+            id[10] = (byte)((Dec[s[16]] << 5) | Dec[s[17]]);
+            id[11] = (byte)((Dec[s[18]] << 3) | Dec[s[19]] >> 2);
+            id[12] = (byte)((Dec[s[19]] << 6) | (Dec[s[20]] << 1) | (Dec[s[21]] >> 4));
+            id[13] = (byte)((Dec[s[21]] << 4) | (Dec[s[22]] >> 1));
+            id[14] = (byte)((Dec[s[22]] << 7) | (Dec[s[23]] << 2) | (Dec[s[24]] >> 3));
+            id[15] = (byte)((Dec[s[24]] << 5) | Dec[s[25]]);
 
             return id;
         }
@@ -88,39 +87,58 @@
                 throw new ArgumentException("Source array length must be 16.", nameof(src));
             }
 
-            char[] dst = new char[26];
+            return EncodeCore(src);
+        }
 
-            // 10 byte timestamp
-            dst[0] = _alphabet[(src[0] & 224) >> 5];
-            dst[1] = _alphabet[src[0] & 31];
-            dst[2] = _alphabet[(src[1] & 248) >> 3];
-            dst[3] = _alphabet[((src[1] & 7) << 2) | ((src[2] & 192) >> 6)];
-            dst[4] = _alphabet[(src[2] & 62) >> 1];
-            dst[5] = _alphabet[((src[2] & 1) << 4) | ((src[3] & 240) >> 4)];
-            dst[6] = _alphabet[((src[3] & 15) << 1) | ((src[4] & 128) >> 7)];
-            dst[7] = _alphabet[(src[4] & 124) >> 2];
-            dst[8] = _alphabet[((src[4] & 3) << 3) | ((src[5] & 224) >> 5)];
-            dst[9] = _alphabet[src[5] & 31];
+        public static string Encode(ReadOnlySpan<byte> src)
+        {
+            if (src.Length != 16)
+            {
+                throw new ArgumentException("Source span length must be 16.");
+            }
 
-            // 16 bytes of entropy
-            dst[10] = _alphabet[(src[6] & 248) >> 3];
-            dst[11] = _alphabet[((src[6] & 7) << 2) | ((src[7] & 192) >> 6)];
-            dst[12] = _alphabet[(src[7] & 62) >> 1];
-            dst[13] = _alphabet[((src[7] & 1) << 4) | ((src[8] & 240) >> 4)];
-            dst[14] = _alphabet[((src[8] & 15) << 1) | ((src[9] & 128) >> 7)];
-            dst[15] = _alphabet[(src[9] & 124) >> 2];
-            dst[16] = _alphabet[((src[9] & 3) << 3) | ((src[10] & 224) >> 5)];
-            dst[17] = _alphabet[src[10] & 31];
-            dst[18] = _alphabet[(src[11] & 248) >> 3];
-            dst[19] = _alphabet[((src[11] & 7) << 2) | ((src[12] & 192) >> 6)];
-            dst[20] = _alphabet[(src[12] & 62) >> 1];
-            dst[21] = _alphabet[((src[12] & 1) << 4) | ((src[13] & 240) >> 4)];
-            dst[22] = _alphabet[((src[13] & 15) << 1) | ((src[14] & 128) >> 7)];
-            dst[23] = _alphabet[(src[14] & 124) >> 2];
-            dst[24] = _alphabet[((src[14] & 3) << 3) | ((src[15] & 224) >> 5)];
-            dst[25] = _alphabet[src[15] & 31];
+            return EncodeCore(src);
+        }
 
-            return new string(dst);
+        private static unsafe string EncodeCore(ReadOnlySpan<byte> bytes)
+        {
+            fixed (byte* ptr = bytes)
+            {
+                return string.Create(26, (IntPtr)ptr, (dst, state) =>
+                {
+                    byte* b = (byte*)state;
+
+                    // 10 byte timestamp
+                    dst[0] = _alphabet[(b[0] & 224) >> 5];
+                    dst[1] = _alphabet[b[0] & 31];
+                    dst[2] = _alphabet[(b[1] & 248) >> 3];
+                    dst[3] = _alphabet[((b[1] & 7) << 2) | ((b[2] & 192) >> 6)];
+                    dst[4] = _alphabet[(b[2] & 62) >> 1];
+                    dst[5] = _alphabet[((b[2] & 1) << 4) | ((b[3] & 240) >> 4)];
+                    dst[6] = _alphabet[((b[3] & 15) << 1) | ((b[4] & 128) >> 7)];
+                    dst[7] = _alphabet[(b[4] & 124) >> 2];
+                    dst[8] = _alphabet[((b[4] & 3) << 3) | ((b[5] & 224) >> 5)];
+                    dst[9] = _alphabet[b[5] & 31];
+
+                    // 16 bytes of entropy
+                    dst[10] = _alphabet[(b[6] & 248) >> 3];
+                    dst[11] = _alphabet[((b[6] & 7) << 2) | ((b[7] & 192) >> 6)];
+                    dst[12] = _alphabet[(b[7] & 62) >> 1];
+                    dst[13] = _alphabet[((b[7] & 1) << 4) | ((b[8] & 240) >> 4)];
+                    dst[14] = _alphabet[((b[8] & 15) << 1) | ((b[9] & 128) >> 7)];
+                    dst[15] = _alphabet[(b[9] & 124) >> 2];
+                    dst[16] = _alphabet[((b[9] & 3) << 3) | ((b[10] & 224) >> 5)];
+                    dst[17] = _alphabet[b[10] & 31];
+                    dst[18] = _alphabet[(b[11] & 248) >> 3];
+                    dst[19] = _alphabet[((b[11] & 7) << 2) | ((b[12] & 192) >> 6)];
+                    dst[20] = _alphabet[(b[12] & 62) >> 1];
+                    dst[21] = _alphabet[((b[12] & 1) << 4) | ((b[13] & 240) >> 4)];
+                    dst[22] = _alphabet[((b[13] & 15) << 1) | ((b[14] & 128) >> 7)];
+                    dst[23] = _alphabet[(b[14] & 124) >> 2];
+                    dst[24] = _alphabet[((b[14] & 3) << 3) | ((b[15] & 224) >> 5)];
+                    dst[25] = _alphabet[b[15] & 31];
+                });
+            }
         }
     }
 }

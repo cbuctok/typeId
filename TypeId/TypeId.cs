@@ -19,14 +19,19 @@
                 throw new ArgumentException("Invalid prefix", nameof(prefix));
             }
 
+            // Use stackalloc to check version without heap allocation
+            Span<byte> bytes = stackalloc byte[16];
+            guid.TryWriteBytes(bytes);
+
             //get version of uuid (guid)
-            var version = guid.ToByteArray()[7] >> 4;
+            var version = bytes[7] >> 4;
             if (version != 1)
             {
                 guid = GuidToUuid(guid);
+                guid.TryWriteBytes(bytes);
             }
 
-            Id = Base32JetPack.Encode(guid.ToByteArray());
+            Id = Base32JetPack.Encode(bytes);
             Type = prefix;
             Uuid = guid;
         }
@@ -46,8 +51,8 @@
 
             foreach (var c in prefix)
             {
-                // false if not ascii lowercase or delimiter
-                if (!char.IsLower(c) || c > 127 || c == _delimiter)
+                // Fast ASCII lowercase check: a-z are 97-122
+                if (c < 'a' || c > 'z' || c == _delimiter)
                 {
                     return false;
                 }
@@ -68,12 +73,14 @@
                 return false;
             }
 
+            // Fast validation: valid base32 chars are 0-9, a-z (excluding i, l, o, u)
             foreach (var c in suffix)
             {
-                if (!char.IsLetterOrDigit(c))
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'z'))
                 {
-                    return false;
+                    continue;
                 }
+                return false;
             }
 
             return true;
@@ -84,9 +91,13 @@
             var guid = UUIDNext.Uuid.NewSequential();
             guid = GuidToUuid(guid);
 
+            // Use stackalloc and TryWriteBytes to avoid heap allocation
+            Span<byte> bytes = stackalloc byte[16];
+            guid.TryWriteBytes(bytes);
+
             return new TypeId
             {
-                Id = Base32JetPack.Encode(guid.ToByteArray()),
+                Id = Base32JetPack.Encode(bytes),
                 Type = prefix,
                 Uuid = guid,
             };
@@ -97,36 +108,37 @@
             string prefix;
             string suffix;
 
-            var parts = input.Split(_delimiter);
-            var length = parts.Length;
-            if (length != 2 && length != 1)
-            {
-                throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
-            }
+            // Use IndexOf instead of Split to avoid array allocation
+            int delimiterIndex = input.IndexOf(_delimiter);
 
-            var hasPrefix = length == 2;
-
-            if (!hasPrefix)
+            if (delimiterIndex == -1)
             {
+                // No delimiter - just suffix
                 prefix = string.Empty;
-                suffix = parts[0];
+                suffix = input;
             }
             else
             {
-                prefix = parts[0];
+                // Has delimiter - split into prefix and suffix
+                prefix = input.Substring(0, delimiterIndex);
+                suffix = input.Substring(delimiterIndex + 1);
 
                 if (string.IsNullOrWhiteSpace(prefix))
                 {
                     throw new ArgumentException("Invalid TypeId format - if the prefix is empty, the separator should not be there");
                 }
 
-                suffix = parts[1];
-            }
+                // Check for multiple delimiters
+                if (suffix.IndexOf(_delimiter) != -1)
+                {
+                    throw new ArgumentException($"Invalid TypeId format - expected prefix{_delimiter}suffix or just 26 symbols long UUID");
+                }
 
-            // validate prefix
-            if (hasPrefix && !IsValidPrefix(prefix))
-            {
-                throw new ArgumentException("Invalid TypeId format - incorrect prefix");
+                // validate prefix
+                if (!IsValidPrefix(prefix))
+                {
+                    throw new ArgumentException("Invalid TypeId format - incorrect prefix");
+                }
             }
 
             // validate suffix
@@ -171,28 +183,21 @@
         /// <returns>Returns a GUID</returns>
         public readonly Guid GetGuid()
         {
-            // endian swap
-            var bytes = Uuid.ToByteArray();
+            Span<byte> bytes = stackalloc byte[16];
+            Uuid.TryWriteBytes(bytes);
 
-            var guidBytes = new byte[16];
-            guidBytes[0] = bytes[3];
-            guidBytes[1] = bytes[2];
-            guidBytes[2] = bytes[1];
-            guidBytes[3] = bytes[0];
-            guidBytes[4] = bytes[5];
-            guidBytes[5] = bytes[4];
-            guidBytes[6] = bytes[7];
-            guidBytes[7] = bytes[6];
-            guidBytes[8] = bytes[8];
-            guidBytes[9] = bytes[9];
-            guidBytes[10] = bytes[10];
-            guidBytes[11] = bytes[11];
-            guidBytes[12] = bytes[12];
-            guidBytes[13] = bytes[13];
-            guidBytes[14] = bytes[14];
-            guidBytes[15] = bytes[15];
+            // Reverse endianness in-place
+            // Reverse bytes 0-3 (first uint)
+            (bytes[0], bytes[3]) = (bytes[3], bytes[0]);
+            (bytes[1], bytes[2]) = (bytes[2], bytes[1]);
 
-            return new Guid(guidBytes);
+            // Reverse bytes 4-5 (first ushort)
+            (bytes[4], bytes[5]) = (bytes[5], bytes[4]);
+
+            // Reverse bytes 6-7 (second ushort)
+            (bytes[6], bytes[7]) = (bytes[7], bytes[6]);
+
+            return new Guid(bytes);
         }
 
         /// <summary>
@@ -203,17 +208,19 @@
 
         private static Guid GuidToUuid(Guid guid)
         {
-            byte[] byteArray = guid.ToByteArray();
+            Span<byte> byteArray = stackalloc byte[16];
+            guid.TryWriteBytes(byteArray);
 
-            // Create temporary variables and correct the byte order to be little-endian
-            uint tempUint = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt32(byteArray[0..4]));
-            Array.Copy(BitConverter.GetBytes(tempUint), 0, byteArray, 0, 4);
+            // Reverse endianness in-place for better performance
+            // Reverse bytes 0-3 (first uint)
+            (byteArray[0], byteArray[3]) = (byteArray[3], byteArray[0]);
+            (byteArray[1], byteArray[2]) = (byteArray[2], byteArray[1]);
 
-            ushort tempUshort = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt16(byteArray[4..6]));
-            Array.Copy(BitConverter.GetBytes(tempUshort), 0, byteArray, 4, 2);
+            // Reverse bytes 4-5 (first ushort)
+            (byteArray[4], byteArray[5]) = (byteArray[5], byteArray[4]);
 
-            tempUshort = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt16(byteArray[6..8]));
-            Array.Copy(BitConverter.GetBytes(tempUshort), 0, byteArray, 6, 2);
+            // Reverse bytes 6-7 (second ushort)
+            (byteArray[6], byteArray[7]) = (byteArray[7], byteArray[6]);
 
             return new Guid(byteArray);
         }
@@ -238,15 +245,17 @@
         private static Guid SuffixToGuid(string suffix)
         {
             var byteArray = Base32JetPack.Decode(suffix);
-            // Create temporary variables and correct the byte order to be big-endian
-            uint tempUint = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt32(byteArray[0..4]));
-            Array.Copy(BitConverter.GetBytes(tempUint), 0, byteArray, 0, 4);
 
-            ushort tempUshort = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt16(byteArray[4..6]));
-            Array.Copy(BitConverter.GetBytes(tempUshort), 0, byteArray, 4, 2);
+            // Reverse endianness in-place for better performance
+            // Reverse bytes 0-3 (first uint)
+            (byteArray[0], byteArray[3]) = (byteArray[3], byteArray[0]);
+            (byteArray[1], byteArray[2]) = (byteArray[2], byteArray[1]);
 
-            tempUshort = System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(BitConverter.ToUInt16(byteArray[6..8]));
-            Array.Copy(BitConverter.GetBytes(tempUshort), 0, byteArray, 6, 2);
+            // Reverse bytes 4-5 (first ushort)
+            (byteArray[4], byteArray[5]) = (byteArray[5], byteArray[4]);
+
+            // Reverse bytes 6-7 (second ushort)
+            (byteArray[6], byteArray[7]) = (byteArray[7], byteArray[6]);
 
             return new Guid(byteArray);
         }

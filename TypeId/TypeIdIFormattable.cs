@@ -16,9 +16,10 @@
 
         public readonly string ToString(string? format, IFormatProvider? formatProvider)
         {
+            // Use string interpolation for better performance
             var registryFormatted = string.IsNullOrWhiteSpace(Type)
                 ? Id
-                : Type + _delimiter + Id;
+                : $"{Type}{_delimiter}{Id}";
 
             if (string.IsNullOrWhiteSpace(format))
             {
