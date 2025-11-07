@@ -1,0 +1,79 @@
+name: Performance Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+  schedule:
+    # Run performance tests every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  performance-test:
+    name: Run Performance Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore TypeId.sln
+
+    - name: Build in Release mode
+      run: dotnet build TypeId.sln --configuration Release --no-restore
+
+    - name: Run performance tests
+      run: |
+        echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Running performance benchmarks..." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Run the performance test and capture output
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --filter "FullyQualifiedName~PerformanceTest" \
+          --verbosity normal \
+          --logger "console;verbosity=detailed" | tee performance_output.txt
+
+        # Extract performance metrics if available
+        if grep -q "Time to run" performance_output.txt; then
+          echo "### Results:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A 2 "Time to run" performance_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Run encode/decode tests
+      run: |
+        echo "### Encode/Decode Performance" >> $GITHUB_STEP_SUMMARY
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --filter "FullyQualifiedName~EncodeDecodeTest" \
+          --verbosity normal
+
+    - name: Performance summary
+      if: success()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All performance tests completed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Target:** < 0.003ms per TypeID generation" >> $GITHUB_STEP_SUMMARY
+
+    - name: Performance failure notice
+      if: failure()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "❌ Performance tests failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Please review the test output above for details." >> $GITHUB_STEP_SUMMARY

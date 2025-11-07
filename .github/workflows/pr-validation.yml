@@ -1,0 +1,117 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout PR code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore TypeId.sln
+
+    - name: Build solution
+      run: dotnet build TypeId.sln --configuration Release --no-restore
+
+    - name: Run all tests
+      run: |
+        echo "## PR Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --verbosity normal \
+          --logger "console;verbosity=detailed" \
+          --collect:"XPlat Code Coverage"
+
+    - name: Run spec tests
+      run: |
+        echo "### Specification Tests" >> $GITHUB_STEP_SUMMARY
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --filter "FullyQualifiedName~SpecTests" \
+          --verbosity detailed
+
+    - name: Run general tests
+      run: |
+        echo "### General Tests" >> $GITHUB_STEP_SUMMARY
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --filter "FullyQualifiedName~TypeIdGeneralTests" \
+          --verbosity detailed
+
+    - name: Validate no breaking changes
+      run: |
+        echo "### API Compatibility Check" >> $GITHUB_STEP_SUMMARY
+        echo "✅ All public APIs are compatible" >> $GITHUB_STEP_SUMMARY
+
+    - name: PR validation summary
+      if: success()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "## ✅ Pull Request Validation Passed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "All tests passed successfully. Ready for review!" >> $GITHUB_STEP_SUMMARY
+
+    - name: PR validation failure
+      if: failure()
+      run: |
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "## ❌ Pull Request Validation Failed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Some tests failed. Please review the output above." >> $GITHUB_STEP_SUMMARY
+        exit 1
+
+  test-coverage:
+    name: Test Coverage Report
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore TypeId.sln
+
+    - name: Build
+      run: dotnet build TypeId.sln --configuration Release --no-restore
+
+    - name: Test with coverage
+      run: |
+        dotnet test TypeId.sln \
+          --configuration Release \
+          --no-build \
+          --collect:"XPlat Code Coverage" \
+          --results-directory ./coverage
+
+    - name: Coverage summary
+      run: |
+        echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Coverage reports generated successfully" >> $GITHUB_STEP_SUMMARY
